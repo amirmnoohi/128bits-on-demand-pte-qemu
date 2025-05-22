@@ -68,6 +68,7 @@ typedef struct S1Translate {
     hwaddr out_virt;
     hwaddr out_phys;
     void *out_host;
+    bool is_128bit;
 } S1Translate;
 
 static bool get_phys_addr_nogpc(CPUARMState *env, S1Translate *ptw,
@@ -1832,9 +1833,15 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
     }
     descaddrmask &= ~indexmask_grainsize;
     tableattrs = 0;
+    ptw->is_128bit = 0;
 
  next_level:
-    descaddr |= (address >> (stride * (4 - level))) & indexmask;
+    if(ptw->is_128bit){
+        descaddr += ((address >> (stride * (3 - level) + arm_granule_bits(param.gran))) & 0x1ff) * 16;
+        ptw->is_128bit = false;
+    }else{
+        descaddr += ((address >> (stride * (3 - level) + arm_granule_bits(param.gran))) & 0x1ff) * 8;
+    }
     descaddr &= ~7ULL;
 
     /*
@@ -1902,6 +1909,12 @@ static bool get_phys_addr_lpae(CPUARMState *env, S1Translate *ptw,
         tableattrs |= extract64(descriptor, 59, 5);
         level++;
         indexmask = indexmask_grainsize;
+        
+        // check if bit 58 is set in the descriptor
+        if (descriptor & (1ULL << 58)){
+            ptw->is_128bit = true;
+        }
+ 
         goto next_level;
     }
 

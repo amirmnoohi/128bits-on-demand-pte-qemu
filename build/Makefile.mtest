@@ -1,0 +1,220 @@
+
+SPEED = quick
+
+.speed.quick = $(foreach s,$(sort $(filter-out %-slow %-thorough, $1)), --suite $s)
+.speed.slow = $(foreach s,$(sort $(filter-out %-thorough, $1)), --suite $s)
+.speed.thorough = $(foreach s,$(sort $1), --suite $s)
+
+TIMEOUT_MULTIPLIER ?= 1
+.mtestargs = --no-rebuild -t $(TIMEOUT_MULTIPLIER)
+ifneq ($(SPEED), quick)
+.mtestargs += --setup $(SPEED)
+endif
+.mtestargs += $(subst -j,--num-processes , $(filter-out -j, $(lastword -j1 $(filter -j%, $(MAKEFLAGS)))))
+
+.check.mtestargs = $(MTESTARGS) $(.mtestargs) $(if $(V),--verbose,--print-errorlogs)
+.bench.mtestargs = $(MTESTARGS) $(.mtestargs) --benchmark --verbose
+
+all-check-targets = check-func check-func-aarch64 check-qtest check-qtest-aarch64 check-unit check-func-quick check-qga check-qapi-schema check-qapi-interop check-block check-decodetree check-softfloat check-softfloat-conv check-softfloat-compare check-softfloat-ops check-qapi-frontend check-qapi-doc
+all-check-xml = check-report-func.junit.xml check-report-func-aarch64.junit.xml check-report-qtest.junit.xml check-report-qtest-aarch64.junit.xml check-report-unit.junit.xml check-report-func-quick.junit.xml check-report-qga.junit.xml check-report-qapi-schema.junit.xml check-report-qapi-interop.junit.xml check-report-block.junit.xml check-report-decodetree.junit.xml check-report-softfloat.junit.xml check-report-softfloat-conv.junit.xml check-report-softfloat-compare.junit.xml check-report-softfloat-ops.junit.xml check-report-qapi-frontend.junit.xml check-report-qapi-doc.junit.xml
+.PHONY: check do-meson-check check-report.junit.xml $(all-check-targets) $(all-check-xml)
+ifeq ($(filter check, $(MAKECMDGOALS)),)
+.check.mtestargs += $(call .speed.$(SPEED), $(.check.mtest-suites))
+endif
+check-build: run-ninja
+check $(all-check-targets): do-meson-check
+do-meson-check: run-ninja; $(if $(MAKE.n),,+)$(MESON) test $(.check.mtestargs)
+check-report.junit.xml $(all-check-xml): check-report%.junit.xml: run-ninja
+	$(MAKE) check$* MTESTARGS="$(MTESTARGS) --logbase check-report$*" && ln -f meson-logs/$@ .
+
+.check-func.deps = tests/tcg/plugins/libempty.so pc-bios/edk2-riscv-code.fd pc-bios/edk2-i386-secure-code.fd pc-bios/edk2-arm-vars.fd tests/tcg/plugins/libsyscall.so contrib/plugins/liblockstep.so pc-bios/edk2-i386-vars.fd contrib/plugins/libhotblocks.so contrib/plugins/libbbv.so pc-bios/edk2-i386-code.fd tests/tcg/plugins/libmem.so tests/tcg/plugins/libreset.so pc-bios/edk2-arm-code.fd tests/tcg/plugins/libinline.so contrib/plugins/libips.so tests/tcg/plugins/libinsn.so contrib/plugins/libhotpages.so contrib/plugins/libhwprofile.so pc-bios/edk2-x86_64-code.fd pc-bios/edk2-aarch64-code.fd tests/tcg/plugins/libbb.so qemu-system-aarch64 pc-bios/edk2-loongarch64-vars.fd contrib/plugins/libexeclog.so contrib/plugins/libdrcov.so pc-bios/edk2-riscv-vars.fd contrib/plugins/libhowvec.so contrib/plugins/libcflow.so contrib/plugins/libstoptrigger.so pc-bios/edk2-loongarch64-code.fd contrib/plugins/libcache.so qemu-img pc-bios/edk2-x86_64-secure-code.fd
+.ninja-goals.check-func += $(.check-func.deps)
+.ninja-goals.check-report-func.junit.xml += $(.check-func.deps)
+.ninja-goals.check += $(.check-func.deps)
+.ninja-goals.check-report.junit.xml += $(.check-func.deps)
+.ninja-goals.check-build += $(.check-func.deps)
+ifneq ($(filter check-func check-report-func.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += func func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough func-thorough
+endif
+
+.check-func-aarch64.deps = tests/tcg/plugins/libempty.so pc-bios/edk2-riscv-code.fd pc-bios/edk2-i386-secure-code.fd pc-bios/edk2-arm-vars.fd tests/tcg/plugins/libsyscall.so contrib/plugins/liblockstep.so pc-bios/edk2-i386-vars.fd contrib/plugins/libhotblocks.so contrib/plugins/libbbv.so pc-bios/edk2-i386-code.fd tests/tcg/plugins/libmem.so tests/tcg/plugins/libreset.so pc-bios/edk2-arm-code.fd tests/tcg/plugins/libinline.so contrib/plugins/libips.so tests/tcg/plugins/libinsn.so contrib/plugins/libhotpages.so contrib/plugins/libhwprofile.so pc-bios/edk2-x86_64-code.fd pc-bios/edk2-aarch64-code.fd tests/tcg/plugins/libbb.so qemu-system-aarch64 pc-bios/edk2-loongarch64-vars.fd contrib/plugins/libexeclog.so contrib/plugins/libdrcov.so pc-bios/edk2-riscv-vars.fd contrib/plugins/libhowvec.so contrib/plugins/libcflow.so contrib/plugins/libstoptrigger.so pc-bios/edk2-loongarch64-code.fd contrib/plugins/libcache.so qemu-img pc-bios/edk2-x86_64-secure-code.fd
+.ninja-goals.check-func-aarch64 += $(.check-func-aarch64.deps)
+.ninja-goals.check-report-func-aarch64.junit.xml += $(.check-func-aarch64.deps)
+.ninja-goals.check += $(.check-func-aarch64.deps)
+.ninja-goals.check-report.junit.xml += $(.check-func-aarch64.deps)
+.ninja-goals.check-build += $(.check-func-aarch64.deps)
+ifneq ($(filter check-func-aarch64 check-report-func-aarch64.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += func-aarch64 func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough func-aarch64-thorough
+endif
+
+.check-qtest.deps = pc-bios/edk2-riscv-code.fd tests/qtest/machine-none-test pc-bios/edk2-i386-secure-code.fd pc-bios/edk2-arm-vars.fd tests/qtest/tpm-tis-device-swtpm-test tests/qtest/arm-cpu-features tests/qtest/fuzz-xlnx-dp-test tests/qtest/xlnx-canfd-test tests/qtest/numa-test pc-bios/edk2-i386-vars.fd tests/qtest/migration-test tests/qtest/qmp-test pc-bios/edk2-i386-code.fd pc-bios/edk2-arm-code.fd tests/qtest/ast2700-smc-test tests/qtest/ast2700-gpio-test tests/qtest/qos-test storage-daemon/qemu-storage-daemon pc-bios/edk2-x86_64-code.fd tests/qtest/boot-serial-test tests/qtest/tpm-tis-device-test tests/qtest/bcm2835-dma-test tests/qtest/bcm2835-i2c-test pc-bios/edk2-aarch64-code.fd tests/qtest/xlnx-can-test tests/qtest/qmp-cmd-test tests/qtest/test-hmp qemu-system-aarch64 pc-bios/edk2-loongarch64-vars.fd tests/qtest/netdev-socket tests/qtest/xlnx-versal-trng-test tests/qtest/tpm-tis-i2c-test pc-bios/edk2-riscv-vars.fd tests/qtest/qom-test tests/qtest/device-introspect-test tests/qtest/readconfig-test tests/qtest/bios-tables-test pc-bios/edk2-loongarch64-code.fd qemu-img pc-bios/edk2-x86_64-secure-code.fd tests/qtest/cdrom-test
+.ninja-goals.check-qtest += $(.check-qtest.deps)
+.ninja-goals.check-report-qtest.junit.xml += $(.check-qtest.deps)
+.ninja-goals.check += $(.check-qtest.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qtest.deps)
+.ninja-goals.check-build += $(.check-qtest.deps)
+ifneq ($(filter check-qtest check-report-qtest.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qtest
+endif
+
+.check-qtest-aarch64.deps = pc-bios/edk2-riscv-code.fd tests/qtest/machine-none-test pc-bios/edk2-i386-secure-code.fd pc-bios/edk2-arm-vars.fd tests/qtest/tpm-tis-device-swtpm-test tests/qtest/arm-cpu-features tests/qtest/fuzz-xlnx-dp-test tests/qtest/xlnx-canfd-test tests/qtest/numa-test pc-bios/edk2-i386-vars.fd tests/qtest/migration-test tests/qtest/qmp-test pc-bios/edk2-i386-code.fd pc-bios/edk2-arm-code.fd tests/qtest/ast2700-smc-test tests/qtest/ast2700-gpio-test tests/qtest/qos-test storage-daemon/qemu-storage-daemon pc-bios/edk2-x86_64-code.fd tests/qtest/boot-serial-test tests/qtest/tpm-tis-device-test tests/qtest/bcm2835-dma-test tests/qtest/bcm2835-i2c-test pc-bios/edk2-aarch64-code.fd tests/qtest/xlnx-can-test tests/qtest/qmp-cmd-test tests/qtest/test-hmp qemu-system-aarch64 pc-bios/edk2-loongarch64-vars.fd tests/qtest/netdev-socket tests/qtest/xlnx-versal-trng-test tests/qtest/tpm-tis-i2c-test pc-bios/edk2-riscv-vars.fd tests/qtest/qom-test tests/qtest/device-introspect-test tests/qtest/readconfig-test tests/qtest/bios-tables-test pc-bios/edk2-loongarch64-code.fd qemu-img pc-bios/edk2-x86_64-secure-code.fd tests/qtest/cdrom-test
+.ninja-goals.check-qtest-aarch64 += $(.check-qtest-aarch64.deps)
+.ninja-goals.check-report-qtest-aarch64.junit.xml += $(.check-qtest-aarch64.deps)
+.ninja-goals.check += $(.check-qtest-aarch64.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qtest-aarch64.deps)
+.ninja-goals.check-build += $(.check-qtest-aarch64.deps)
+ifneq ($(filter check-qtest-aarch64 check-report-qtest-aarch64.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qtest-aarch64
+endif
+
+.check-unit.deps = tests/unit/test-crypto-hmac tests/unit/test-string-output-visitor tests/unit/test-util-sockets tests/unit/test-qobject-output-visitor tests/unit/test-crypto-secret tests/unit/test-int128 tests/unit/test-aio-multithread tests/unit/check-qlist tests/unit/test-resv-mem tests/unit/test-bdrv-graph-mod tests/unit/test-authz-list tests/unit/test-image-locking tests/unit/test-crypto-afsplit tests/unit/test-error-report tests/unit/test-cutils tests/unit/test-timed-average tests/unit/test-shift128 tests/unit/rcutorture tests/unit/test-authz-simple tests/unit/test-io-channel-null tests/unit/test-x86-topo tests/unit/test-io-channel-file tests/unit/test-rcu-list tests/unit/test-crypto-pbkdf tests/unit/test-crypto-cipher qga/qemu-ga tests/unit/test-forward-visitor tests/unit/ptimer-test qga/qga-ssh-test tests/unit/test-bitcnt tests/unit/test-visitor-serialization tests/unit/test-rcu-tailq tests/unit/test-blockjob-txn tests/unit/test-base64 tests/unit/check-qom-proplist tests/unit/test-hbitmap tests/unit/test-logging tests/unit/check-qlit tests/unit/test-bitops tests/unit/test-qht tests/unit/test-bufferiszero tests/unit/test-xs-node tests/unit/test-keyval tests/unit/test-qmp-event tests/unit/test-throttle tests/unit/test-qapi-util tests/unit/test-coroutine tests/unit/test-iov tests/unit/test-xbzrle tests/unit/test-qobject-input-visitor tests/unit/test-clone-visitor tests/unit/check-qom-interface tests/unit/test-string-input-visitor tests/unit/test-virtio-dmabuf tests/unit/check-qnum tests/unit/test-qdev-global-props tests/unit/test-write-threshold tests/unit/test-qga tests/unit/test-crypto-akcipher tests/unit/check-qobject tests/unit/test-rcu-slist tests/unit/test-aio tests/unit/test-block-backend tests/unit/test-crypto-ivgen tests/unit/test-fifo tests/unit/test-crypto-der tests/unit/test-char tests/unit/check-block-qdict tests/unit/test-qmp-cmds tests/unit/test-crypto-block tests/unit/test-authz-listfile tests/unit/test-replication tests/unit/test-blockjob tests/unit/test-uuid tests/unit/test-qemu-opts tests/unit/test-interval-tree tests/unit/test-vmstate tests/unit/test-div128 tests/unit/test-io-task tests/unit/test-opts-visitor tests/unit/test-block-iothread tests/unit/test-mul64 tests/unit/check-qjson tests/unit/test-qtree tests/unit/test-smp-parse tests/unit/test-nested-aio-poll tests/unit/test-crypto-hash tests/unit/test-thread-pool tests/unit/test-bdrv-drain tests/unit/test-qgraph tests/unit/test-io-channel-socket tests/unit/check-qdict tests/unit/check-qnull tests/unit/check-qstring tests/unit/test-rcu-simpleq tests/unit/test-util-filemonitor tests/unit/test-io-channel-command tests/unit/test-yank tests/unit/test-io-channel-buffer tests/unit/test-qdist tests/unit/test-bitmap
+.ninja-goals.check-unit += $(.check-unit.deps)
+.ninja-goals.check-report-unit.junit.xml += $(.check-unit.deps)
+.ninja-goals.check += $(.check-unit.deps)
+.ninja-goals.check-report.junit.xml += $(.check-unit.deps)
+.ninja-goals.check-build += $(.check-unit.deps)
+ifneq ($(filter check-unit check-report-unit.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += unit
+endif
+
+.check-func-quick.deps = tests/tcg/plugins/libempty.so pc-bios/edk2-riscv-code.fd pc-bios/edk2-i386-secure-code.fd pc-bios/edk2-arm-vars.fd tests/tcg/plugins/libsyscall.so contrib/plugins/liblockstep.so pc-bios/edk2-i386-vars.fd contrib/plugins/libhotblocks.so contrib/plugins/libbbv.so pc-bios/edk2-i386-code.fd tests/tcg/plugins/libmem.so tests/tcg/plugins/libreset.so pc-bios/edk2-arm-code.fd tests/tcg/plugins/libinline.so contrib/plugins/libips.so tests/tcg/plugins/libinsn.so contrib/plugins/libhotpages.so contrib/plugins/libhwprofile.so pc-bios/edk2-x86_64-code.fd pc-bios/edk2-aarch64-code.fd tests/tcg/plugins/libbb.so qemu-system-aarch64 pc-bios/edk2-loongarch64-vars.fd contrib/plugins/libexeclog.so contrib/plugins/libdrcov.so pc-bios/edk2-riscv-vars.fd contrib/plugins/libhowvec.so contrib/plugins/libcflow.so contrib/plugins/libstoptrigger.so pc-bios/edk2-loongarch64-code.fd contrib/plugins/libcache.so qemu-img pc-bios/edk2-x86_64-secure-code.fd
+.ninja-goals.check-func-quick += $(.check-func-quick.deps)
+.ninja-goals.check-report-func-quick.junit.xml += $(.check-func-quick.deps)
+.ninja-goals.check += $(.check-func-quick.deps)
+.ninja-goals.check-report.junit.xml += $(.check-func-quick.deps)
+.ninja-goals.check-build += $(.check-func-quick.deps)
+ifneq ($(filter check-func-quick check-report-func-quick.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += func-quick
+endif
+
+.check-qga.deps = qga/qga-ssh-test
+.ninja-goals.check-qga += $(.check-qga.deps)
+.ninja-goals.check-report-qga.junit.xml += $(.check-qga.deps)
+.ninja-goals.check += $(.check-qga.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qga.deps)
+.ninja-goals.check-build += $(.check-qga.deps)
+ifneq ($(filter check-qga check-report-qga.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qga
+endif
+
+.check-qapi-schema.deps = tests/qapi-schema/doc-good.txt.nocr tests/qapi-schema/doc-good.ref.nocr
+.ninja-goals.check-qapi-schema += $(.check-qapi-schema.deps)
+.ninja-goals.check-report-qapi-schema.junit.xml += $(.check-qapi-schema.deps)
+.ninja-goals.check += $(.check-qapi-schema.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qapi-schema.deps)
+.ninja-goals.check-build += $(.check-qapi-schema.deps)
+ifneq ($(filter check-qapi-schema check-report-qapi-schema.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qapi-schema
+endif
+
+.check-qapi-interop.deps = 
+.ninja-goals.check-qapi-interop += $(.check-qapi-interop.deps)
+.ninja-goals.check-report-qapi-interop.junit.xml += $(.check-qapi-interop.deps)
+.ninja-goals.check += $(.check-qapi-interop.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qapi-interop.deps)
+.ninja-goals.check-build += $(.check-qapi-interop.deps)
+ifneq ($(filter check-qapi-interop check-report-qapi-interop.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qapi-interop
+endif
+
+.check-block.deps = qemu-io storage-daemon/qemu-storage-daemon qemu-system-aarch64 qemu-img qemu-nbd
+.ninja-goals.check-block += $(.check-block.deps)
+.ninja-goals.check-report-block.junit.xml += $(.check-block.deps)
+.ninja-goals.check += $(.check-block.deps)
+.ninja-goals.check-report.junit.xml += $(.check-block.deps)
+.ninja-goals.check-build += $(.check-block.deps)
+ifneq ($(filter check-block check-report-block.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += block block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-slow block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough block-thorough
+endif
+
+.check-decodetree.deps = 
+.ninja-goals.check-decodetree += $(.check-decodetree.deps)
+.ninja-goals.check-report-decodetree.junit.xml += $(.check-decodetree.deps)
+.ninja-goals.check += $(.check-decodetree.deps)
+.ninja-goals.check-report.junit.xml += $(.check-decodetree.deps)
+.ninja-goals.check-build += $(.check-decodetree.deps)
+ifneq ($(filter check-decodetree check-report-decodetree.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += decodetree
+endif
+
+.check-softfloat.deps = tests/fp/fp-test tests/fp/fp-test-log2
+.ninja-goals.check-softfloat += $(.check-softfloat.deps)
+.ninja-goals.check-report-softfloat.junit.xml += $(.check-softfloat.deps)
+.ninja-goals.check += $(.check-softfloat.deps)
+.ninja-goals.check-report.junit.xml += $(.check-softfloat.deps)
+.ninja-goals.check-build += $(.check-softfloat.deps)
+ifneq ($(filter check-softfloat check-report-softfloat.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += softfloat softfloat-slow
+endif
+
+.check-softfloat-conv.deps = tests/fp/fp-test
+.ninja-goals.check-softfloat-conv += $(.check-softfloat-conv.deps)
+.ninja-goals.check-report-softfloat-conv.junit.xml += $(.check-softfloat-conv.deps)
+.ninja-goals.check += $(.check-softfloat-conv.deps)
+.ninja-goals.check-report.junit.xml += $(.check-softfloat-conv.deps)
+.ninja-goals.check-build += $(.check-softfloat-conv.deps)
+ifneq ($(filter check-softfloat-conv check-report-softfloat-conv.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += softfloat-conv
+endif
+
+.check-softfloat-compare.deps = tests/fp/fp-test
+.ninja-goals.check-softfloat-compare += $(.check-softfloat-compare.deps)
+.ninja-goals.check-report-softfloat-compare.junit.xml += $(.check-softfloat-compare.deps)
+.ninja-goals.check += $(.check-softfloat-compare.deps)
+.ninja-goals.check-report.junit.xml += $(.check-softfloat-compare.deps)
+.ninja-goals.check-build += $(.check-softfloat-compare.deps)
+ifneq ($(filter check-softfloat-compare check-report-softfloat-compare.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += softfloat-compare
+endif
+
+.check-softfloat-ops.deps = tests/fp/fp-test tests/fp/fp-test-log2
+.ninja-goals.check-softfloat-ops += $(.check-softfloat-ops.deps)
+.ninja-goals.check-report-softfloat-ops.junit.xml += $(.check-softfloat-ops.deps)
+.ninja-goals.check += $(.check-softfloat-ops.deps)
+.ninja-goals.check-report.junit.xml += $(.check-softfloat-ops.deps)
+.ninja-goals.check-build += $(.check-softfloat-ops.deps)
+ifneq ($(filter check-softfloat-ops check-report-softfloat-ops.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += softfloat-ops softfloat-ops-slow
+endif
+
+.check-qapi-frontend.deps = 
+.ninja-goals.check-qapi-frontend += $(.check-qapi-frontend.deps)
+.ninja-goals.check-report-qapi-frontend.junit.xml += $(.check-qapi-frontend.deps)
+.ninja-goals.check += $(.check-qapi-frontend.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qapi-frontend.deps)
+.ninja-goals.check-build += $(.check-qapi-frontend.deps)
+ifneq ($(filter check-qapi-frontend check-report-qapi-frontend.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qapi-frontend
+endif
+
+.check-qapi-doc.deps = tests/qapi-schema/doc-good.txt.nocr tests/qapi-schema/doc-good.ref.nocr
+.ninja-goals.check-qapi-doc += $(.check-qapi-doc.deps)
+.ninja-goals.check-report-qapi-doc.junit.xml += $(.check-qapi-doc.deps)
+.ninja-goals.check += $(.check-qapi-doc.deps)
+.ninja-goals.check-report.junit.xml += $(.check-qapi-doc.deps)
+.ninja-goals.check-build += $(.check-qapi-doc.deps)
+ifneq ($(filter check-qapi-doc check-report-qapi-doc.junit.xml check check-report.junit.xml, $(MAKECMDGOALS)),)
+.check.mtest-suites += qapi-doc
+endif
+
+all-bench-targets = bench-speed
+all-bench-xml = bench-report-speed.junit.xml
+.PHONY: bench do-meson-bench bench-report.junit.xml $(all-bench-targets) $(all-bench-xml)
+ifeq ($(filter bench, $(MAKECMDGOALS)),)
+.bench.mtestargs += $(call .speed.$(SPEED), $(.bench.mtest-suites))
+endif
+bench-build: run-ninja
+bench $(all-bench-targets): do-meson-bench
+do-meson-bench: run-ninja; $(if $(MAKE.n),,+)$(MESON) test $(.bench.mtestargs)
+bench-report.junit.xml $(all-bench-xml): bench-report%.junit.xml: run-ninja
+	$(MAKE) bench$* MTESTARGS="$(MTESTARGS) --logbase bench-report$*" && ln -f meson-logs/$@ .
+
+.bench-speed.deps = tests/bench/benchmark-crypto-hmac tests/bench/benchmark-crypto-cipher tests/bench/bufferiszero-bench tests/bench/benchmark-crypto-akcipher tests/bench/benchmark-crypto-hash
+.ninja-goals.bench-speed += $(.bench-speed.deps)
+.ninja-goals.bench-report-speed.junit.xml += $(.bench-speed.deps)
+.ninja-goals.bench += $(.bench-speed.deps)
+.ninja-goals.bench-report.junit.xml += $(.bench-speed.deps)
+.ninja-goals.bench-build += $(.bench-speed.deps)
+ifneq ($(filter bench-speed bench-report-speed.junit.xml bench bench-report.junit.xml, $(MAKECMDGOALS)),)
+.bench.mtest-suites += speed
+endif
